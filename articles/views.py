@@ -1,52 +1,92 @@
 from django.core import serializers
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
+from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import Article
-from .serializers import ArticleSerializer
+from rest_framework.views import APIView
+
+from .models import Article, Comment
+from .serializers import ArticleSerializer, CommentSerializer
 
 
-# Create your views here.
+class ArticleListAPIView(APIView):
+    @staticmethod
+    def get(request):
+        articles = Article.objects.all()
+        # 데이터가 여러개이기 때문에 many=True
+        serializer = ArticleSerializer(articles, many=True)
+        return Response(serializer.data)
+
+    @staticmethod
+    def post(request):
+        serializer = ArticleSerializer(data=request.data)
+        # raise_exception 예외처리 자동으로 해줌
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-def article_list_html(request):
-    articles = Article.objects.all()
-    context = {'articles': articles}
-    return render(request, "articles/article_list.html", context)
+class ArticleDetailAPIView(APIView):
+
+    @staticmethod
+    def get_object(pk):
+        return get_object_or_404(Article, pk=pk)
+
+    def get(self, request, article_id):
+        article = self.get_object(article_id)
+        serializer = ArticleSerializer(article)
+        return Response(serializer.data)
+
+    def delete(self, request, article_id):
+        article = self.get_object(article_id)
+        article.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def put(self, request, article_id):
+        article = self.get_object(article_id)
+        # partial 데이터를 부분만 받아서 수정이 가능하도록 함
+        serializer = ArticleSerializer(article, data=request.data, partial=True)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+            return Response(serializer.data)
 
 
-# 커스텀으로 직렬화
-def json_01(request):
-    articles = Article.objects.all()
+class CommentListAPIView(APIView):
+    @staticmethod
+    def get(reqeust, article_id):
+        article = get_object_or_404(Article, pk=article_id)
+        comments = article.comments.all()
+        serializer = CommentSerializer(comments, many=True)
+        return Response(serializer.data)
 
-    # 리스트에 딕셔너리 형태로 넣기 // JSON 형식의 문자열로 직렬화
-    json_articles = []
-    for article in articles:
-        json_articles.append(
-            {
-                "title": article.title,
-                "content": article.content,
-                "created_at": article.created_at,
-                "updated_at": article.updated_at,
-            }
-        )
-    # json_articles 가 딕셔너리 형태가 아니기 때문에 safe 는 False로 해줘야 함.
-    return JsonResponse(json_articles, safe=False)
+    @staticmethod
+    def post(request, article_id):
+        article = get_object_or_404(Article, pk=article_id)
+        serializer = CommentSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save(article=article)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-# 자동으로 직렬화
-def json_02(request):
-    articles = Article.objects.all()
-    # 자동으로 JSON 형식의 문자열로 직렬화
-    res_data = serializers.serialize("json", articles)
-    return HttpResponse(res_data, content_type="application/json")
+class CommentDetailAPIView(APIView):
+    @staticmethod
+    def get_object(comment_id):
+        return get_object_or_404(Comment, pk=comment_id)
 
+    def get(self, request, comment_id):
+        comment = self.get_object(comment_id)
+        serializer = CommentSerializer(comment)
+        return Response(serializer.data)
 
-# 자동으로 직렬화 + HTML 생성
-@api_view(["GET"])
-def json_drf(request):
-    articles = Article.objects.all()
-    # Article 모델을 이용하여 ArticleSerializer 생성 ( serializers.py )
-    serializer = ArticleSerializer(articles, many=True)
-    return Response(serializer.data)
+    def put(self, request, comment_id):
+        comment = self.get_object(comment_id)
+        serializer = CommentSerializer(comment, data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+            return Response(serializer.data)
+
+    def delete(self, request, comment_id):
+        comment = self.get_object(comment_id)
+        comment.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

@@ -1,10 +1,9 @@
 from django.urls import path
 from . import views
 
-app_name = 'articles'
 urlpatterns = [
-    path("html/", views.article_list_html, name="article_list_html"),
-    path("json-01/", views.json_01, name="json_01"),
-    path("json-02/", views.json_02, name="json_02"),
-    path("json-drf/", views.json_drf, name="json_drf"),
+    path("", views.ArticleListAPIView.as_view()),
+    path("<int:article_id>/", views.ArticleDetailAPIView.as_view()),
+    path("<int:article_id>/comments/", views.CommentListAPIView.as_view()),
+    path("comments/<int:comment_id>/", views.CommentDetailAPIView.as_view()),
 ]

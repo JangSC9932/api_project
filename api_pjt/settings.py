@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     # Third-party
     'django_seed',
     'rest_framework',
+    'django_extensions',
     # local
     'articles',
 ]
